@@ -26,6 +26,9 @@
     <uses-permission android:name="android.permission.BLUETOOTH"></uses-permission>
 	<uses-permission android:name="android.permission.BLUETOOTH_ADMIN"></uses-permission>
 	
+	<!-- 获取信号迁强度 -->
+	<uses-permission android:name="android.permission.CHANGE_NETWORK_STATE"></uses-permission>  
+	
 	<supports-screens android:anyDensity="true" android:resizeable="true" android:smallScreens="true" android:largeScreens="true" android:normalScreens="true"></supports-screens>
 	
       

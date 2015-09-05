@@ -18,6 +18,7 @@
 */
 package at.abraxas.amarino;
 
+import android.annotation.SuppressLint;
 import android.app.Activity;
 import android.app.AlertDialog;
 import android.app.Dialog;
@@ -26,9 +27,13 @@ import android.content.Context;
 import android.content.DialogInterface;
 import android.content.Intent;
 import android.content.IntentFilter;
+import android.os.BatteryManager;
 import android.os.Bundle;
 import android.os.Handler;
 import android.preference.PreferenceManager;
+import android.telephony.PhoneStateListener;
+import android.telephony.SignalStrength;
+import android.telephony.TelephonyManager;
 import android.view.MotionEvent;
 import android.view.View;
 import android.widget.Button;
@@ -45,6 +50,7 @@ import at.abraxas.amarino.log.Logger;
  *
  * $Id: Monitoring.java 444 2010-06-10 13:11:59Z abraxas $
  */
+@SuppressLint("NewApi")
 public class Monitoring extends Activity implements LogListener, View.OnClickListener {
 	
 	private static final int DIALOG_FLAGS = 1;
@@ -137,6 +143,14 @@ public class Monitoring extends Activity implements LogListener, View.OnClickLis
 	protected void onStart() {
 		super.onStart();
 		logScrollView.fullScroll(View.FOCUS_DOWN);
+		
+		TelephonyManager Tel = ( TelephonyManager )getSystemService(Context.TELEPHONY_SERVICE);  
+		   
+	    Tel.listen(new MyPhoneStateListener(),PhoneStateListener.LISTEN_SIGNAL_STRENGTHS); 
+	    System.out.println("start phone state Listener");
+	    
+	    registerReceiver(receiver, new IntentFilter(Intent.ACTION_BATTERY_CHANGED));  
+	    
 	}
 
 	@Override
@@ -264,23 +278,30 @@ public class Monitoring extends Activity implements LogListener, View.OnClickLis
 			break;
 			
 		case R.id.send_btn:
-			if (addresses == null){
-				// no device is connected
-				Toast.makeText(Monitoring.this, "No connected device found!\n\nData not sent.", Toast.LENGTH_SHORT).show();
-			}
-			else if (addresses.length == 1){
-				// no need to ask just send data to the connected device
-				sendData(addresses[0], dataToSendET.getText().toString());
-			}
-			else {
-				// several connected devices, we need to show a dialog and ask where to send the data
-				showDialog(DIALOG_DEVICES);
-			}
+			sendDateToARM(dataToSendET.getText().toString());
 			break;
 			
 		case R.id.clear_btn:
 			clearLogClickHandler(v);
 			break;
+		}
+	}
+
+	/**
+	 * 
+	 */
+	private void sendDateToARM(String text) {
+		if (addresses == null){
+			// no device is connected
+			Toast.makeText(Monitoring.this, "No connected device found!\n\nData not sent.", Toast.LENGTH_SHORT).show();
+		}
+		else if (addresses.length == 1){
+			// no need to ask just send data to the connected device
+			sendData(addresses[0], "/"+text+"\\");
+		}
+		else {
+			// several connected devices, we need to show a dialog and ask where to send the data
+			showDialog(DIALOG_DEVICES);
 		}
 	}
 	
@@ -294,8 +315,53 @@ public class Monitoring extends Activity implements LogListener, View.OnClickLis
 			
 			if (AmarinoIntent.ACTION_CONNECTED_DEVICES.equals(action)){
 				addresses = intent.getStringArrayExtra(AmarinoIntent.EXTRA_CONNECTED_DEVICE_ADDRESSES);
-			}
+			}else if (Intent.ACTION_BATTERY_CHANGED.equals(action)){
+				 	Integer BatteryN = intent.getIntExtra("level", 0);    //目前电量  
+				 	Integer BatteryV = intent.getIntExtra("voltage", 0);  //电池电压  
+				 	Integer BatteryT = intent.getIntExtra("temperature", 0);  //电池温度  
+				 	
+				 	String BatteryStatus = null;
+	                  
+	                switch (intent.getIntExtra("status", BatteryManager.BATTERY_STATUS_UNKNOWN))   
+	                {  
+		                case BatteryManager.BATTERY_STATUS_CHARGING:  
+		                    BatteryStatus = "Charge";  
+		                    break;  
+		                case BatteryManager.BATTERY_STATUS_DISCHARGING:  
+		                    BatteryStatus = "Discharge";  
+		                    break;  
+		                case BatteryManager.BATTERY_STATUS_NOT_CHARGING:  
+		                    BatteryStatus = "Nocharge";  
+		                    break;  
+		                case BatteryManager.BATTERY_STATUS_FULL:  
+		                    BatteryStatus = "Battery_full";  
+		                    break;  
+		                case BatteryManager.BATTERY_STATUS_UNKNOWN:  
+		                    BatteryStatus = "Unknown";  
+		                    break;  
+	                } 
+	                System.out.println(BatteryStatus+"V:"+BatteryV+" N:"+BatteryN+" T:"+BatteryT);
+	                sendDateToARM(BatteryStatus+"V:"+BatteryV+"N:"+BatteryN); 
+	                
+            }
 		}
 	};
+	
+	
+	 private class MyPhoneStateListener extends PhoneStateListener{  
+	   
+	      /* Get the Signal strength from the provider, each tiome there is an update  从得到的信号强度,每个tiome供应商有更新*/  
+	   
+	      @Override  
+	      public void onSignalStrengthsChanged(SignalStrength signalStrength){  
+	   
+	         super.onSignalStrengthsChanged(signalStrength);  
+	   
+	         System.out.println("GMS:"+String.valueOf(signalStrength.getGsmSignalStrength()));
+	         sendDateToARM("GMS:"+String.valueOf(String.valueOf(signalStrength.getGsmSignalStrength())));
+	      }  
+	   
+	  };
+	   
 	
 }
